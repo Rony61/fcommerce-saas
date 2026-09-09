@@ -114,4 +114,10 @@ app.post("/webhook/facebook", async (req, res) => {
   }
 });
 
+// Bind local server port for local development
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`🚀 Local dev server listening on port ${PORT}`));
+}
+
 export default app;
