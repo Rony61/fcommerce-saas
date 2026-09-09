@@ -40,7 +40,7 @@ async function parseBanglishOrder(text: string) {
     }
   });
 
-  return JSON.parse(response.text() || "{}");
+  return JSON.parse(response.text || "{}");
 }
 
 app.get("/", (req, res) => {
