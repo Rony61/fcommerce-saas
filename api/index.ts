@@ -36,7 +36,6 @@ async function parseBanglishOrder(text: string) {
     required: ["items"]
   };
 
-  // Switch to primary flash model target
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: `Extract order details from this Banglish customer message: "${text}"`,
@@ -66,29 +65,30 @@ app.get("/webhook/facebook", (req, res) => {
 
 app.post("/webhook/facebook", async (req, res) => {
   console.log("---------------- WEBHOOK TRIGGERED ----------------");
-  
+  console.log("RAW PAYLOAD:", JSON.stringify(req.body, null, 2));
+
   try {
-    const messagingEvent = req.body?.entry?.[0]?.messaging?.[0];
+    const entry = req.body?.entry?.[0];
+    const messagingEvent = entry?.messaging?.[0];
     const userMessage = messagingEvent?.message?.text;
     const senderId = messagingEvent?.sender?.id;
 
     if (!userMessage) {
-      console.log("⚠️ Event is not a user text message (skipping parsing).");
-      return res.status(200).send("EVENT_RECEIVED");
+      console.log("⚠️ Received non-text event or delivery/read status receipt. Skipping execution.");
+      res.status(200).send("EVENT_RECEIVED");
+      return;
     }
 
-    console.log(`💬 Processing Message: "${userMessage}"`);
+    console.log(`💬 Processing Text Message: "${userMessage}"`);
 
     let parsedOrder: any = {};
     try {
       parsedOrder = await parseBanglishOrder(userMessage);
       console.log("✅ Gemini Output:", JSON.stringify(parsedOrder));
     } catch (parseErr: any) {
-      console.error("❌ Gemini Parsing Error:", parseErr?.message || parseErr);
+      console.error("❌ Gemini Parsing Failed:", parseErr?.message || parseErr);
     }
 
-    console.log("⏳ Direct Call: Inserting into Supabase...");
-    
     const record = {
       customer_name: parsedOrder?.customerName || "Unknown",
       phone_number: parsedOrder?.phoneNumber || null,
@@ -99,16 +99,18 @@ app.post("/webhook/facebook", async (req, res) => {
       sender_id: senderId || null
     };
 
+    console.log("⏳ Sending payload to Supabase:", JSON.stringify(record));
+
     const { data, error } = await supabase.from("orders").insert([record]).select();
 
     if (error) {
-      console.error("❌ Supabase DB Error:", JSON.stringify(error, null, 2));
+      console.error("❌ Supabase DB Error Details:", JSON.stringify(error, null, 2));
     } else {
-      console.log("💾 SUCCESS: Logged to Supabase table! Row:", JSON.stringify(data));
+      console.log("💾 SUCCESS: Inserted Row into Supabase:", JSON.stringify(data, null, 2));
     }
 
   } catch (globalErr: any) {
-    console.error("❌ Critical Webhook Error:", globalErr?.message || globalErr);
+    console.error("❌ Uncaught Error during Webhook execution:", globalErr?.stack || globalErr);
   } finally {
     console.log("---------------- WEBHOOK COMPLETED ----------------");
     res.status(200).send("EVENT_RECEIVED");
