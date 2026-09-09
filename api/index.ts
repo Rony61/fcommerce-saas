@@ -13,7 +13,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function parseBanglishOrder(text: string) {
+async function parseBanglishOrder(text: string, retries = 3, delayMs = 1000) {
   const responseSchema: Schema = {
     type: Type.OBJECT,
     properties: {
@@ -37,19 +37,29 @@ async function parseBanglishOrder(text: string) {
     required: ["phoneNumber", "items"]
   };
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `Extract order details from this Banglish customer message: "${text}"`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: responseSchema,
-      temperature: 0.1
-    }
-  });
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: `Extract order details from this Banglish customer message: "${text}"`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+          temperature: 0.1
+        }
+      });
 
-  // Fixed line: access response.text property directly
-  const rawText = response.text || "{}";
-  return JSON.parse(rawText);
+      const rawText = response.text || "{}";
+      return JSON.parse(rawText);
+    } catch (error: any) {
+      if ((error?.status === 503 || error?.status === 429) && attempt < retries) {
+        console.warn(`⚠️ Gemini API hit temporary load issue (${error.status}). Retrying attempt ${attempt}/${retries}...`);
+        await new Promise((res) => setTimeout(res, delayMs * attempt));
+      } else {
+        throw error;
+      }
+    }
+  }
 }
 
 app.get("/", (req, res) => {
