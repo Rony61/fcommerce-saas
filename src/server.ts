@@ -1,7 +1,6 @@
 import express from "express";
 import { parseBanglishOrder } from "./aiParser";
 
-// Only load dotenv locally. Vercel handles env vars automatically.
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
@@ -48,5 +47,4 @@ if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => console.log(`🚀 Local Server running on port ${PORT}`));
 }
 
-// Required by Vercel Serverless Functions
-module.exports = app;
+export default app;
