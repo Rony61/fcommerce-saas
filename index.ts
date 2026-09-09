@@ -31,7 +31,7 @@ async function parseBanglishOrder(text: string) {
   };
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.6-flash",
     contents: `Extract order details from this Banglish customer message: "${text}"`,
     config: {
       responseMimeType: "application/json",
