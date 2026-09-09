@@ -79,7 +79,7 @@ app.post("/webhook/facebook", async (req, res) => {
 
     console.log(`💬 Processing: "${userMessage}"`);
     
-    let parsedOrder = {};
+    let parsedOrder: any = {};
     try {
       parsedOrder = await parseBanglishOrder(userMessage);
       console.log("✅ Parsed Output:", JSON.stringify(parsedOrder));
