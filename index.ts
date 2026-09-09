@@ -61,18 +61,23 @@ app.get("/webhook/facebook", (req, res) => {
 });
 
 app.post("/webhook/facebook", async (req, res) => {
-  res.status(200).send("EVENT_RECEIVED");
   try {
     const messagingEvent = req.body?.entry?.[0]?.messaging?.[0];
     const userMessage = messagingEvent?.message?.text;
-    
-    if (!userMessage) return;
+
+    if (!userMessage) {
+      res.status(200).send("EVENT_RECEIVED");
+      return;
+    }
 
     console.log(`💬 Processing: "${userMessage}"`);
     const parsedOrder = await parseBanglishOrder(userMessage);
     console.log("✅ Parsed:", parsedOrder);
+
+    res.status(200).send("EVENT_RECEIVED");
   } catch (error) {
     console.error("❌ Error:", error);
+    res.status(200).send("EVENT_RECEIVED");
   }
 });
 
