@@ -38,7 +38,7 @@ async function parseBanglishOrder(text: string) {
 
   const response = await ai.models.generateContent({
     model: "gemini-1.5-flash",
-    contents: \`Extract order details from this Banglish customer message: "${text}"\`,
+    contents: `Extract order details from this Banglish customer message: "${text}"`,
     config: {
       responseMimeType: "application/json",
       responseSchema: responseSchema,
@@ -76,7 +76,7 @@ app.post("/webhook/facebook", async (req, res) => {
       return;
     }
 
-    console.log(\`💬 Processing: "${userMessage}"\`);
+    console.log(`💬 Processing: "${userMessage}"`);
     
     let parsedOrder: any = {};
     try {
