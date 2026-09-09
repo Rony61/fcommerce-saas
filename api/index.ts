@@ -64,29 +64,29 @@ app.get("/webhook/facebook", (req, res) => {
 });
 
 app.post("/webhook/facebook", async (req, res) => {
-  console.log("---------------- START WEBHOOK ----------------");
+  console.log("---------------- WEBHOOK TRIGGERED ----------------");
+  
   try {
     const messagingEvent = req.body?.entry?.[0]?.messaging?.[0];
     const userMessage = messagingEvent?.message?.text;
     const senderId = messagingEvent?.sender?.id;
 
     if (!userMessage) {
-      console.log("⚠️ No user text message found in event payload.");
-      res.status(200).send("EVENT_RECEIVED");
-      return;
+      console.log("⚠️ Event is not a user text message (skipping parsing).");
+      return res.status(200).send("EVENT_RECEIVED");
     }
 
-    console.log(`💬 Processing: "${userMessage}"`);
-    
+    console.log(`💬 Processing Message: "${userMessage}"`);
+
     let parsedOrder: any = {};
     try {
       parsedOrder = await parseBanglishOrder(userMessage);
-      console.log("✅ Parsed Output:", JSON.stringify(parsedOrder));
+      console.log("✅ Gemini Output:", JSON.stringify(parsedOrder));
     } catch (parseErr: any) {
-      console.error("❌ Gemini Parsing Failed:", parseErr?.message || parseErr);
+      console.error("❌ Gemini Parsing Error:", parseErr?.message || parseErr);
     }
 
-    console.log("⏳ Attempting Supabase database insert...");
+    console.log("⏳ Direct Call: Inserting into Supabase...");
     
     const record = {
       customer_name: parsedOrder?.customerName || "Unknown",
@@ -98,26 +98,25 @@ app.post("/webhook/facebook", async (req, res) => {
       sender_id: senderId || null
     };
 
-    const { data, error } = await supabase.from("orders").insert([record]);
+    const { data, error } = await supabase.from("orders").insert([record]).select();
 
     if (error) {
       console.error("❌ Supabase DB Error:", JSON.stringify(error, null, 2));
     } else {
-      console.log("💾 SUCCESS: Logged to Supabase!");
+      console.log("💾 SUCCESS: Logged to Supabase table! Row:", JSON.stringify(data));
     }
 
   } catch (globalErr: any) {
     console.error("❌ Critical Webhook Error:", globalErr?.message || globalErr);
   } finally {
-    console.log("---------------- END WEBHOOK ----------------");
+    console.log("---------------- WEBHOOK COMPLETED ----------------");
     res.status(200).send("EVENT_RECEIVED");
   }
 });
 
-// Bind local server port for local development
 if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`🚀 Local dev server listening on port ${PORT}`));
+  const PORT = process.env.PORT || 5001;
+  app.listen(PORT, () => console.log(`🚀 Local dev server running on port ${PORT}`));
 }
 
 export default app;
