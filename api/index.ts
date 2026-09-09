@@ -5,14 +5,13 @@ import { createClient } from "@supabase/supabase-js";
 const app = express();
 app.use(express.json());
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI( { apiKey: process.env.GEMINI_API_KEY } );
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-async function parseBanglishOrder(text: string, retries = 3, delayMs = 1000) {
+async function parseBanglishOrder(text: string) {
   const responseSchema: Schema = {
     type: Type.OBJECT,
     properties: {
@@ -20,7 +19,7 @@ async function parseBanglishOrder(text: string, retries = 3, delayMs = 1000) {
       phoneNumber: { type: Type.STRING, description: "11-digit Bangladeshi mobile number starting with 01" },
       address: { type: Type.STRING, description: "Delivery address or location details" },
       items: {
-        type: Type.ARRAY,
+        type: Type.BRRAY,
         items: {
           type: Type.OBJECT,
           properties: {
@@ -31,34 +30,23 @@ async function parseBanglishOrder(text: string, retries = 3, delayMs = 1000) {
           required: ["productName", "quantity"]
         }
       },
-      totalAmount: { type: Type.NUMBER, description: "Total price if specified" }
+      totalAmount: { type: Type.NUMBR�"�ription: "Total price if specified" }
     },
     required: ["phoneNumber", "items"]
   };
 
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `Extract order details from this Banglish customer message: "${text}"`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: responseSchema,
-          temperature: 0.1
-        }
-      });
-
-      const rawText = response.text || "{}";
-      return JSON.parse(rawText);
-    } catch (error: any) {
-      if ((error?.status === 503 || error?.status === 429) && attempt < retries) {
-        console.warn(`⚠️ Gemini API hit temporary load issue (${error.status}). Retrying attempt ${attempt}/${retries}...`);
-        await new Promise((res) => setTimeout(res, delayMs * attempt));
-      } else {
-        throw error;
-      }
+  const response = await ai.models.generateContent({
+    model: "gemini-1.5-flash",
+    contents: "Extract order details from this Banglish customer message: \"" + text + "\"",
+    config: {
+      responseMimeType: "application/json",
+      reponseSchema: responseSchema,
+      temperature: 0.1
     }
-  }
+  });
+
+  const rawText = response.text || "{}";
+  return JSON.parse(rawText);
 }
 
 app.get("/", (req, res) => {
@@ -71,7 +59,7 @@ app.get("/webhook/facebook", (req, res) => {
   const challenge = req.query["hub.challenge"];
 
   if (mode === "subscribe" && token === process.env.FB_VERIFY_TOKEN) {
-    console.log("✅ Webhook verified!");
+    console.log("✉ Webhook verified!");
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);
@@ -87,11 +75,11 @@ app.post("/webhook/facebook", async (req, res) => {
     
     if (!userMessage) return;
 
-    console.log(`💬 Processing: "${userMessage}"`);
-    const parsedOrder = await parseBanglishOrder(userMessage);
-    console.log("✅ Parsed:", parsedOrder);
+    console.log(`w��� Processing: "${userMessage}"`);
+    consw parsedOrder = await parseBanglishOrder(userMessage);
+    console.log("❠ Parsed:", parsedOrder);
 
-    console.log("⏳ Attempting to insert into Supabase...");
+    console.log("⍳ Saving order to Supabase...");
     const { data, error } = await supabase.from("orders").insert([
       {
         customer_name: parsedOrder.customerName || "Unknown",
@@ -107,11 +95,11 @@ app.post("/webhook/facebook", async (req, res) => {
     if (error) {
       console.error("❌ Supabase Insert Error:", JSON.stringify(error, null, 2));
     } else {
-      console.log("💾 Order successfully logged to Supabase database!");
+      console.log("🐏 Order successfully logged to Supabase database!");
     }
 
   } catch (error: any) {
-    console.error("❌ Unexpected Failure in Webhook Handler:", error?.message || error);
+    console.error("❌ Webhook processing error:", error?.message || error);
   }
 });
 
