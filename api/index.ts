@@ -33,7 +33,7 @@ async function parseBanglishOrder(text: string) {
       },
       totalAmount: { type: Type.NUMBER, description: "Total price if specified" }
     },
-    required: ["phoneNumber", "items"]
+    required: ["items"]
   };
 
   const response = await ai.models.generateContent({
@@ -81,17 +81,19 @@ app.post("/webhook/facebook", async (req, res) => {
     console.log("✅ Parsed:", parsedOrder);
 
     console.log("⏳ Saving order to Supabase...");
-    const { data, error } = await supabase.from("orders").insert([
-      {
-        customer_name: parsedOrder.customerName || "Unknown",
-        phone_number: parsedOrder.phoneNumber || null,
-        address: parsedOrder.address || null,
-        items: parsedOrder.items || [],
-        total_amount: parsedOrder.totalAmount || 0,
-        raw_message: userMessage,
-        sender_id: senderId || null
-      }
-    ]);
+    
+    // Safely structure payload with strict fallbacks
+    const record = {
+      customer_name: parsedOrder?.customerName || "Unknown",
+      phone_number: parsedOrder?.phoneNumber || null,
+      address: parsedOrder?.address || null,
+      items: parsedOrder?.items || [],
+      total_amount: typeof parsedOrder?.totalAmount === "number" ? parsedOrder.totalAmount : 0,
+      raw_message: userMessage,
+      sender_id: senderId || null
+    };
+
+    const { data, error } = await supabase.from("orders").insert([record]);
 
     if (error) {
       console.error("❌ Supabase Insert Error:", JSON.stringify(error, null, 2));
