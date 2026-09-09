@@ -47,7 +47,9 @@ async function parseBanglishOrder(text: string) {
     }
   });
 
-  return JSON.parse(response.text() || "{}");
+  // Fixed line: access response.text property directly
+  const rawText = response.text || "{}";
+  return JSON.parse(rawText);
 }
 
 app.get("/", (req, res) => {
