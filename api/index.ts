@@ -16,9 +16,9 @@ async function parseBanglishOrder(text: string) {
   const responseSchema: Schema = {
     type: Type.OBJECT,
     properties: {
-      customerName: { type: Type.STRING, description: "Name of the customer if mentioned" },
-      phoneNumber: { type: Type.STRING, description: "11-digit Bangladeshi mobile number starting with 01" },
-      address: { type: Type.STRING, description: "Delivery address or location details" },
+      customerName: { type: Type.STRING },
+      phoneNumber: { type: Type.STRING },
+      address: { type: Type.STRING },
       items: {
         type: Type.ARRAY,
         items: {
@@ -31,7 +31,7 @@ async function parseBanglishOrder(text: string) {
           required: ["productName", "quantity"]
         }
       },
-      totalAmount: { type: Type.NUMBER, description: "Total price if specified" }
+      totalAmount: { type: Type.NUMBER }
     },
     required: ["items"]
   };
@@ -46,13 +46,10 @@ async function parseBanglishOrder(text: string) {
     }
   });
 
-  const rawText = response.text || "{}";
-  return JSON.parse(rawText);
+  return JSON.parse(response.text || "{}");
 }
 
-app.get("/", (req, res) => {
-  res.status(200).send("F-Commerce AI Server Running!");
-});
+app.get("/", (req, res) => res.status(200).send("F-Commerce AI Server Running!"));
 
 app.get("/webhook/facebook", (req, res) => {
   const mode = req.query["hub.mode"];
@@ -60,7 +57,6 @@ app.get("/webhook/facebook", (req, res) => {
   const challenge = req.query["hub.challenge"];
 
   if (mode === "subscribe" && token === process.env.FB_VERIFY_TOKEN) {
-    console.log("✅ Webhook verified!");
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);
@@ -69,20 +65,30 @@ app.get("/webhook/facebook", (req, res) => {
 
 app.post("/webhook/facebook", async (req, res) => {
   res.status(200).send("EVENT_RECEIVED");
+  
+  console.log("---------------- START WEBHOOK ----------------");
   try {
     const messagingEvent = req.body?.entry?.[0]?.messaging?.[0];
     const userMessage = messagingEvent?.message?.text;
     const senderId = messagingEvent?.sender?.id;
-    
-    if (!userMessage) return;
+
+    if (!userMessage) {
+      console.log("⚠️ No user text message found in event payload.");
+      return;
+    }
 
     console.log(`💬 Processing: "${userMessage}"`);
-    const parsedOrder = await parseBanglishOrder(userMessage);
-    console.log("✅ Parsed:", parsedOrder);
-
-    console.log("⏳ Saving order to Supabase...");
     
-    // Safely structure payload with strict fallbacks
+    let parsedOrder = {};
+    try {
+      parsedOrder = await parseBanglishOrder(userMessage);
+      console.log("✅ Parsed Output:", JSON.stringify(parsedOrder));
+    } catch (parseErr: any) {
+      console.error("❌ Gemini Parsing Failed:", parseErr?.message || parseErr);
+    }
+
+    console.log("⏳ Attempting Supabase database insert...");
+    
     const record = {
       customer_name: parsedOrder?.customerName || "Unknown",
       phone_number: parsedOrder?.phoneNumber || null,
@@ -96,14 +102,15 @@ app.post("/webhook/facebook", async (req, res) => {
     const { data, error } = await supabase.from("orders").insert([record]);
 
     if (error) {
-      console.error("❌ Supabase Insert Error:", JSON.stringify(error, null, 2));
+      console.error("❌ Supabase DB Error:", JSON.stringify(error, null, 2));
     } else {
-      console.log("💾 Order successfully logged to Supabase database!");
+      console.log("💾 SUCCESS: Logged to Supabase!");
     }
 
-  } catch (error: any) {
-    console.error("❌ Webhook processing error:", error?.message || error);
+  } catch (globalErr: any) {
+    console.error("❌ Critical Webhook Error:", globalErr?.message || globalErr);
   }
+  console.log("---------------- END WEBHOOK ----------------");
 });
 
 export default app;
