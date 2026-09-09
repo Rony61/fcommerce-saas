@@ -7,7 +7,6 @@ app.use(express.json());
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// Initialize Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -92,8 +91,8 @@ app.post("/webhook/facebook", async (req, res) => {
     const parsedOrder = await parseBanglishOrder(userMessage);
     console.log("✅ Parsed:", parsedOrder);
 
-    // Save order data to Supabase 'orders' table
-    const { error } = await supabase.from("orders").insert([
+    console.log("⏳ Attempting to insert into Supabase...");
+    const { data, error } = await supabase.from("orders").insert([
       {
         customer_name: parsedOrder.customerName || "Unknown",
         phone_number: parsedOrder.phoneNumber || null,
@@ -106,13 +105,13 @@ app.post("/webhook/facebook", async (req, res) => {
     ]);
 
     if (error) {
-      console.error("❌ Supabase Insert Error:", error.message);
+      console.error("❌ Supabase Insert Error:", JSON.stringify(error, null, 2));
     } else {
       console.log("💾 Order successfully logged to Supabase database!");
     }
 
-  } catch (error) {
-    console.error("❌ Error:", error);
+  } catch (error: any) {
+    console.error("❌ Unexpected Failure in Webhook Handler:", error?.message || error);
   }
 });
 
