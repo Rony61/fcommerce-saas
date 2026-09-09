@@ -1,5 +1,5 @@
 import express from "express";
-import { parseBanglishOrder } from "./aiParser";
+import { parseBanglishOrder } from "./aiParser.js";
 
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
