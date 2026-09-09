@@ -5,6 +5,11 @@ import { parseBanglishOrder } from "./aiParser";
 const app = express();
 app.use(express.json());
 
+// Root endpoint test
+app.get("/", (req, res) => {
+  res.status(200).send("F-Commerce AI Server Running!");
+});
+
 // Verification endpoint for Facebook Webhook setup
 app.get("/webhook/facebook", (req, res) => {
   const mode = req.query["hub.mode"];
@@ -21,7 +26,6 @@ app.get("/webhook/facebook", (req, res) => {
 
 // Primary Webhook handler for incoming Facebook Messenger messages
 app.post("/webhook/facebook", async (req, res) => {
-  // Respond immediately to Meta/curl to prevent webhook timeout
   res.status(200).send("EVENT_RECEIVED");
 
   console.log("\n----------------------------------------");
@@ -51,7 +55,12 @@ app.post("/webhook/facebook", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
-});
+// Support local development while exporting Express app for Vercel Serverless
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 5001;
+  app.listen(PORT, () => {
+    console.log(`🚀 Local Server listening on port ${PORT}`);
+  });
+}
+
+export default app;
