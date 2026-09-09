@@ -36,8 +36,9 @@ async function parseBanglishOrder(text: string) {
     required: ["items"]
   };
 
+  // Switch to primary flash model target
   const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.5-flash",
     contents: `Extract order details from this Banglish customer message: "${text}"`,
     config: {
       responseMimeType: "application/json",
