@@ -38,7 +38,7 @@ async function parseBanglishOrder(text: string) {
 
   const response = await ai.models.generateContent({
     model: "gemini-1.5-flash",
-    contents: `Extract order details from this Banglish customer message: "${text}"`,
+    contents: \`Extract order details from this Banglish customer message: "${text}"\`,
     config: {
       responseMimeType: "application/json",
       responseSchema: responseSchema,
@@ -64,8 +64,6 @@ app.get("/webhook/facebook", (req, res) => {
 });
 
 app.post("/webhook/facebook", async (req, res) => {
-  res.status(200).send("EVENT_RECEIVED");
-  
   console.log("---------------- START WEBHOOK ----------------");
   try {
     const messagingEvent = req.body?.entry?.[0]?.messaging?.[0];
@@ -74,10 +72,11 @@ app.post("/webhook/facebook", async (req, res) => {
 
     if (!userMessage) {
       console.log("⚠️ No user text message found in event payload.");
+      res.status(200).send("EVENT_RECEIVED");
       return;
     }
 
-    console.log(`💬 Processing: "${userMessage}"`);
+    console.log(\`💬 Processing: "${userMessage}"\`);
     
     let parsedOrder: any = {};
     try {
@@ -109,8 +108,10 @@ app.post("/webhook/facebook", async (req, res) => {
 
   } catch (globalErr: any) {
     console.error("❌ Critical Webhook Error:", globalErr?.message || globalErr);
+  } finally {
+    console.log("---------------- END WEBHOOK ----------------");
+    res.status(200).send("EVENT_RECEIVED");
   }
-  console.log("---------------- END WEBHOOK ----------------");
 });
 
 export default app;
