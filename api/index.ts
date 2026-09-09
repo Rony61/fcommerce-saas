@@ -5,12 +5,10 @@ import { createClient } from "@supabase/supabase-js";
 const app = express();
 app.use(express.json());
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Hardcode the known Supabase project URL to eliminate runtime environment resolution errors
+const SUPABASE_URL = "https://zhkjjyxnauszkbnxueok.supabase.co";
 
 async function parseBanglishOrder(text: string) {
   const responseSchema: Schema = {
@@ -68,15 +66,13 @@ app.post("/webhook/facebook", async (req, res) => {
   console.log("RAW PAYLOAD:", JSON.stringify(req.body, null, 2));
 
   try {
-    const entry = req.body?.entry?.[0];
-    const messagingEvent = entry?.messaging?.[0];
+    const messagingEvent = req.body?.entry?.[0]?.messaging?.[0];
     const userMessage = messagingEvent?.message?.text;
     const senderId = messagingEvent?.sender?.id;
 
     if (!userMessage) {
-      console.log("⚠️ Received non-text event or delivery/read status receipt. Skipping execution.");
-      res.status(200).send("EVENT_RECEIVED");
-      return;
+      console.log("⚠️ Received non-text event or delivery receipt. Skipping.");
+      return res.status(200).send("EVENT_RECEIVED");
     }
 
     console.log(`💬 Processing Text Message: "${userMessage}"`);
@@ -99,18 +95,23 @@ app.post("/webhook/facebook", async (req, res) => {
       sender_id: senderId || null
     };
 
-    console.log("⏳ Sending payload to Supabase:", JSON.stringify(record));
+    console.log("⏳ Initializing Supabase client...");
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    if (!serviceKey) {
+      console.error("❌ ERROR: SUPABASE_SERVICE_ROLE_KEY is missing from process.env");
+    }
 
+    const supabase = createClient(SUPABASE_URL, serviceKey);
     const { data, error } = await supabase.from("orders").insert([record]).select();
 
     if (error) {
-      console.error("❌ Supabase DB Error Details:", JSON.stringify(error, null, 2));
+      console.error("❌ Supabase DB Error:", JSON.stringify(error, null, 2));
     } else {
       console.log("💾 SUCCESS: Inserted Row into Supabase:", JSON.stringify(data, null, 2));
     }
 
   } catch (globalErr: any) {
-    console.error("❌ Uncaught Error during Webhook execution:", globalErr?.stack || globalErr);
+    console.error("❌ Uncaught Error during Webhook execution:", globalErr?.message || globalErr);
   } finally {
     console.log("---------------- WEBHOOK COMPLETED ----------------");
     res.status(200).send("EVENT_RECEIVED");
@@ -123,4 +124,3 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export default app;
-// Force rebuild timestamp: 1788982068
